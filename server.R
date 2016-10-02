@@ -1,9 +1,10 @@
+library(shiny)
 library(ggvis)
 library(dplyr)
 if (FALSE) library(RSQLite)
 
 # Set up handles to database tables on app start
-db <- src_sqlite("movies.db")
+db <- src_sqlite("~/Desktop/R-Shiny-project/movie/movies.db")
 omdb <- tbl(db, "omdb")
 tomatoes <- tbl(db, "tomatoes")
 
@@ -11,7 +12,7 @@ tomatoes <- tbl(db, "tomatoes")
 all_movies <- inner_join(omdb, tomatoes, by = "ID") %>%
   filter(Reviews >= 10) %>%
   select(ID, imdbID, Title, Year, Rating_m = Rating.x, Runtime, Genre, Released,
-         Director, Writer, imdbRating, imdbVotes, Language, Country, Oscars,
+         Writer, imdbRating, imdbVotes, Language, Country, Oscars,
          Rating = Rating.y, Meter, Reviews, Fresh, Rotten, userMeter, userRating, userReviews,
          BoxOffice, Production)
 
@@ -40,22 +41,24 @@ function(input, output, session) {
       ) %>%
       arrange(Oscars)
     
-    # Optional: filter by genre
+    # filter by genre
     if (input$genre != "All") {
       genre <- paste0("%", input$genre, "%")
       m <- m %>% filter(Genre %like% genre)
     }
-    # Optional: filter by director
+    
+    # filter by language
+    if (input$language != "All") {
+      language <- paste0("%", input$language, "%")
+      m <- m %>% filter(Language %like% language)
+    }
+    
+    # filter by director
     if (!is.null(input$director) && input$director != "") {
       director <- paste0("%", input$director, "%")
       m <- m %>% filter(Director %like% director)
     }
-    # Optional: filter by cast member
-    if (!is.null(input$cast) && input$cast != "") {
-      cast <- paste0("%", input$cast, "%")
-      m <- m %>% filter(Cast %like% cast)
-    }
-    
+    # filter by cast member
     
     m <- as.data.frame(m)
     
@@ -76,9 +79,10 @@ function(input, output, session) {
     all_movies <- isolate(movies())
     movie <- all_movies[all_movies$ID == x$ID, ]
     
-    paste0("<b>", movie$Title, "</b><br>",
-           movie$Year, "<br>",
-           "$", format(movie$BoxOffice, big.mark = ",", scientific = FALSE)
+    paste0("<b>", h1(movie$Title), "</b><br>",
+           h2(movie$Year), 
+           h2("Boxoffice$"), "<b>", format(movie$BoxOffice, big.mark = ",", scientific = FALSE),
+           movie$Genre
     )
   }
   
@@ -101,9 +105,7 @@ function(input, output, session) {
       add_tooltip(movie_tooltip, "hover") %>%
       add_axis("x", title = xvar_name) %>%
       add_axis("y", title = yvar_name) %>%
-      add_legend("stroke", title = "Won Oscar", values = c("Yes", "No")) %>%
-      scale_nominal("stroke", domain = c("Yes", "No"),
-                    range = c("orange", "#aaa")) %>%
+      
       set_options(width = 500, height = 500)
   })
   
@@ -111,3 +113,5 @@ function(input, output, session) {
   
   output$n_movies <- renderText({ nrow(movies()) })
 }
+  
+
